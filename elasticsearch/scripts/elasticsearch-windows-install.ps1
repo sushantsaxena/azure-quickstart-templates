@@ -210,7 +210,13 @@ function Download-ElasticSearch
     )
 	# download ElasticSearch from a given source URL to destination folder
 	try{
-			$source = if ($elasticVersion -match '2.') {"https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/zip/elasticsearch/$elasticVersion/elasticsearch-$elasticVersion.zip"} else { "https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-$elasticVersion.zip" }
+			$source = if ($elasticVersion -match '2.') {
+							"https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/zip/elasticsearch/$elasticVersion/elasticsearch-$elasticVersion.zip"
+						} else if ($elasticVersion -match '6.') {
+							"https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$elasticVersion.zip"
+						} else {
+							"https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-$elasticVersion.zip"
+						}
 			$destination = "$targetDrive`:\Downloads\ElasticSearch\Elastic-Search.zip"
             
             # create folder if doesn't exists and suppress the output
