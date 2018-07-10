@@ -210,11 +210,14 @@ function Download-ElasticSearch
     )
 	# download ElasticSearch from a given source URL to destination folder
 	try{
-			$source = if ($elasticVersion -match '2.') {
+			$source = if ($elasticVersion -match '2.')
+						{
 							"https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/zip/elasticsearch/$elasticVersion/elasticsearch-$elasticVersion.zip"
-						} else if ($elasticVersion -match '6.') {
+						} elseif ($elasticVersion -match '6.')
+						{
 							"https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$elasticVersion.zip"
-						} else {
+						} else
+						{
 							"https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-$elasticVersion.zip"
 						}
 			$destination = "$targetDrive`:\Downloads\ElasticSearch\Elastic-Search.zip"
@@ -596,7 +599,7 @@ function Install-WorkFlow
 			$textToAppend = $textToAppend + "`ncloud.azure.storage.default.account: $po"
 			$textToAppend = $textToAppend + "`ncloud.azure.storage.default.key: $r"
 		}
-		else
+		elseif (-Not ($elasticSearchVersion -match '6.'))
 		{
 			cmd.exe /C "$elasticSearchBin\plugin.bat -i elasticsearch/elasticsearch-cloud-azure/2.8.2"
 			
@@ -613,7 +616,7 @@ function Install-WorkFlow
         {
             $textToAppend = $textToAppend + "`nmarvel.agent.exporters:`n  id1:`n    type: http`n    host: [$marvelIPAddresses]"
         }
-        else
+        elseif (-Not ($elasticSearchVersion -match '6.'))
         {
             $textToAppend = $textToAppend + "`nmarvel.agent.exporter.hosts: [$marvelIPAddresses]"
         }
@@ -641,7 +644,7 @@ function Install-WorkFlow
             cmd.exe /C "$elasticSearchBin\plugin.bat install license"
             cmd.exe /C "$elasticSearchBin\plugin.bat install marvel-agent"
         }
-        else
+        elseif (-Not ($elasticSearchVersion -match '6.'))
         {
             cmd.exe /C "$elasticSearchBin\plugin.bat -i elasticsearch/marvel/1.3.1"
         }
