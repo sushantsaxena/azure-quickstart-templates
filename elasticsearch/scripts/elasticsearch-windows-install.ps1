@@ -630,7 +630,7 @@ function Install-WorkFlow
     # Install service using the batch file in bin folder
     $serviceFile = if ($elasticSearchVersion -match '6.') { "elasticsearch-service.bat" } else { "service.bat" }
     $scriptPath = Join-Path $elasticSearchBin -ChildPath $serviceFile
-    $textToAppend = $textToAppend + "`" + $scriptPath
+    $textToAppend = $textToAppend + "`#### " + $scriptPath
 
     Add-Content $elasticSearchConfFile $textToAppend
 		

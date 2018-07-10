@@ -4,7 +4,7 @@
   "parameters": {
     "adminUsername": {
       "type": "string",
-	  "defaultValue": "ocvadmin",
+      "defaultValue": "ocvadmin",
       "metadata": {
         "description": "Admin username used when provisioning virtual machines"
       }
@@ -146,8 +146,8 @@
         "Standard_D3_v2",
         "Standard_D4_v2",
         "Standard_D12_v2",
-		"Standard_D13_v2",
-		"Standard_DS13_v2",
+        "Standard_D13_v2",
+        "Standard_DS13_v2",
         "Standard_A2",
         "Standard_A3",
         "Standard_A4",
@@ -182,8 +182,8 @@
       "type": "string",
       "defaultValue": "6.3.1",
       "allowedValues": [
-		"6.3.1",
-		"2.3.2",
+        "6.3.1",
+        "2.3.2",
         "2.3.1",
         "2.2.2",
         "2.1.2",
@@ -536,7 +536,7 @@
         "kibana": {
           "publisher": "Microsoft.Azure.Extensions",
           "type": "CustomScript",
-	  "autoUpgradeMinorVersion": true,
+      "autoUpgradeMinorVersion": true,
           "typeHandlerVersion": "2.0",
           "settings": {
             "fileUris": "[variables('ubuntuScripts')]",
@@ -711,7 +711,7 @@
         "nodesPerStorageAccount": 2,
         "storageAccountType": "Premium_LRS"
       },
-	  "Standard_DS13_v2": {
+      "Standard_DS13_v2": {
         "dataDisks": 16,
         "nodesPerStorageAccount": 2,
         "storageAccountType": "Premium_LRS"
