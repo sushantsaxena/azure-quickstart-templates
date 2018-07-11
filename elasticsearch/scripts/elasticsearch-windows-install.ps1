@@ -588,10 +588,15 @@ function Install-WorkFlow
         $textToAppend = $textToAppend + "`ndiscovery.zen.ping.unicast.hosts: [$ipAddresses]"
     }
 
-    # In ES 2.x you explicitly need to set network host to _non_loopback_ or the IP address of the host else other nodes cannot communicate
     if ($elasticSearchVersion -match '2.')
     {
+        # In ES 2.x you explicitly need to set network host to _non_loopback_ or the IP address of the host else other nodes cannot communicate
         $textToAppend = $textToAppend + "`nnetwork.host: _non_loopback_"
+    }
+    elseif ($elasticSearchVersion -match '6.')
+    {
+        # Bind to _site_ else nodes can't discover each other, https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#network-interface-values
+        $textToAppend = $textToAppend + "`nnetwork.host: _site_"
     }
 
     # configure the cloud-azure plugin, if selected
@@ -609,16 +614,12 @@ function Install-WorkFlow
             # During installation, plugion asks for y/n input, provide that from the file
             $inFile = Join-Path $elasticSearchBin -ChildPath "input.txt"
             Set-Content -Path $inFile -Value "y`ny" 
-
-            $outFile1 = Join-Path $elasticSearchBin -ChildPath "output1.txt"
-            $outFile2 = Join-Path $elasticSearchBin -ChildPath "output2.txt"
         
             # cloud azure plugin broken into two https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-azure.html
-            $elasticSearchPlugin = Join-Path $elasticSearchBin -ChildPath "elasticsearch-plugin.bat"
-            cmd.exe /C "$elasticSearchPlugin install discovery-azure-classic < $inFile > $outFile1"
-            cmd.exe /C "$elasticSearchPlugin install repository-azure < $inFile > $outFile2"
+            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install discovery-azure-classic < $inFile"
+            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install repository-azure < $inFile"
             
-            $textToAppend = $textToAppend + "`ncloud.azure.storage.account: $po ### $elasticSearchPlugin"
+            $textToAppend = $textToAppend + "`ncloud.azure.storage.account: $po"
             $textToAppend = $textToAppend + "`ncloud.azure.storage.key: $r"
         }
         else
