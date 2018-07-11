@@ -536,7 +536,7 @@ function Install-WorkFlow
     if($discoveryEndpoints.Length -ne 0) { $ipAddresses = Implode-Host2 $discoveryEndpoints }
 		
 	# Extract install folders
-	$elasticSearchBinParent = (gci -path $elasticSearchInstallLocation -filter "bin" -Recurse).Parent.FullName
+	$elasticSearchBinParent = Join-Path $elasticSearchInstallLocation -ChildPath "elasticsearch-$elasticSearchVersion"
 	$elasticSearchBin = Join-Path $elasticSearchBinParent -ChildPath "bin"
 	$elasticSearchConfFile = Join-Path $elasticSearchBinParent -ChildPath "config\elasticsearch.yml"
 		
