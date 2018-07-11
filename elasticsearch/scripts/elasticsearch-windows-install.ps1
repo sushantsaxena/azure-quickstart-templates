@@ -576,12 +576,12 @@ function Install-WorkFlow
     }
 
     $textToAppend = $textToAppend + "`ndiscovery.zen.minimum_master_nodes: 2"
-	
-	if (-Not ($elasticSearchVersion -match '6.'))
-	{
-		# Multicast not supported since ES 5.x
-		$textToAppend = $textToAppend + "`ndiscovery.zen.ping.multicast.enabled: false"
-	}
+    
+    if (-Not ($elasticSearchVersion -match '6.'))
+    {
+        # Multicast not supported since ES 5.x
+        $textToAppend = $textToAppend + "`ndiscovery.zen.ping.multicast.enabled: false"
+    }
 
     if($ipAddresses -ne $null)
     {
@@ -606,7 +606,7 @@ function Install-WorkFlow
         }
         elseif ($elasticSearchVersion -match '6.')
         {
-			# cloud azure plugin broken into two https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-azure.html
+            # cloud azure plugin broken into two https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-azure.html
             cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install discovery-azure-classic"
             cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install repository-azure"
             
