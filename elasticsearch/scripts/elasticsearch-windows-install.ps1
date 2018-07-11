@@ -607,14 +607,18 @@ function Install-WorkFlow
         elseif ($elasticSearchVersion -match '6.')
         {
             # During installation, plugion asks for y/n input, provide that from the file
-            $inFile = "$elasticSearchBin\input.txt"
+            $inFile = Join-Path $elasticSearchBin -ChildPath "input.txt"
             Set-Content -Path $inFile -Value "y`ny" 
+
+            $outFile1 = Join-Path $elasticSearchBin -ChildPath "output1.txt"
+            $outFile2 = Join-Path $elasticSearchBin -ChildPath "output2.txt"
         
             # cloud azure plugin broken into two https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-azure.html
-            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install discovery-azure-classic < $inFile > $elasticSearchBin\discovery-azure-classic-output.txt"
-            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install repository-azure < $inFile > $elasticSearchBin\repository-azure-output.txt"
+            $elasticSearchPlugin = Join-Path $elasticSearchBin -ChildPath "elasticsearch-plugin.bat"
+            cmd.exe /C "$elasticSearchPlugin install discovery-azure-classic < $inFile > $outFile1"
+            cmd.exe /C "$elasticSearchPlugin install repository-azure < $inFile > $outFile2"
             
-            $textToAppend = $textToAppend + "`ncloud.azure.storage.account: $po"
+            $textToAppend = $textToAppend + "`ncloud.azure.storage.account: $po ### $elasticSearchPlugin"
             $textToAppend = $textToAppend + "`ncloud.azure.storage.key: $r"
         }
         else
