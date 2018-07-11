@@ -576,7 +576,12 @@ function Install-WorkFlow
     }
 
     $textToAppend = $textToAppend + "`ndiscovery.zen.minimum_master_nodes: 2"
-    $textToAppend = $textToAppend + "`ndiscovery.zen.ping.multicast.enabled: false"
+	
+	if (-Not ($elasticSearchVersion -match '6.'))
+	{
+		# Multicast not supported since ES 5.x
+		$textToAppend = $textToAppend + "`ndiscovery.zen.ping.multicast.enabled: false"
+	}
 
     if($ipAddresses -ne $null)
     {
@@ -599,7 +604,16 @@ function Install-WorkFlow
             $textToAppend = $textToAppend + "`ncloud.azure.storage.default.account: $po"
             $textToAppend = $textToAppend + "`ncloud.azure.storage.default.key: $r"
         }
-        elseif (-Not ($elasticSearchVersion -match '6.'))
+        elseif ($elasticSearchVersion -match '6.')
+        {
+			# cloud azure plugin broken into two https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-azure.html
+            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install discovery-azure-classic"
+            cmd.exe /C "$elasticSearchBin\elasticsearch-plugin.bat install repository-azure"
+            
+            $textToAppend = $textToAppend + "`ncloud.azure.storage.account: $po"
+            $textToAppend = $textToAppend + "`ncloud.azure.storage.key: $r"
+        }
+        else
         {
             cmd.exe /C "$elasticSearchBin\plugin.bat -i elasticsearch/elasticsearch-cloud-azure/2.8.2"
             
@@ -626,11 +640,6 @@ function Install-WorkFlow
     {
         $textToAppend = $textToAppend + "`nmarvel.agent.enabled: false"
     }
-
-    # Install service using the batch file in bin folder
-    $serviceFile = if ($elasticSearchVersion -match '6.') { "elasticsearch-service.bat" } else { "service.bat" }
-    $scriptPath = Join-Path $elasticSearchBin -ChildPath $serviceFile
-    $textToAppend = $textToAppend + "`#### " + $scriptPath
 
     Add-Content $elasticSearchConfFile $textToAppend
         
