@@ -75,6 +75,28 @@
         "description": "Optionally add a virtual machine to the deployment which you can use to connect and manage virtual machines on the internal network"
       }
     },
+    "jumpboxSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4_v2",
+      "allowedValues": [
+        "Standard_D2_v2",
+        "Standard_D3_v2",
+        "Standard_D4_v2",
+        "Standard_A2",
+        "Standard_A3",
+        "Standard_A4",
+        "Standard_A5",
+        "Standard_A6",
+        "Standard_A7",
+        "Standard_DS2",
+        "Standard_DS3",
+        "Standard_DS4",
+        "Standard_DS13"
+        ],
+      "metadata": {
+        "description": "Size of jumpbox VM"
+      }
+    },
     "vmClientNodeCount": {
       "type": "int",
       "defaultValue": 3,
@@ -1037,6 +1059,9 @@
           },
           "namespace": {
             "value": "[concat(parameters('esClusterName'), '-jumpbox')]"
+          },
+          "vmSize": {
+            "value": "[variables('jumpboxSize')]"
           }
         }
       }

@@ -75,10 +75,19 @@ Set-Variable regEnvPath -Option Constant -Value 'Registry::HKEY_LOCAL_MACHINE\Sy
 
 function Log-Output(){
     $args | Write-Host -ForegroundColor Cyan
+	if ($logsFile.Length -ne 0)
+	{
+		Add-Content -Path $logsFile -Value $args
+	}
 }
 
 function Log-Error(){
     $args | Write-Host -ForegroundColor Red
+	
+	if ($errorsFile.Length -ne 0)
+	{
+		Add-Content -Path $errorsFile -Value $args
+	}
 }
 
 Set-Alias -Name lmsg -Value Log-Output -Description "Displays an informational message in green color" 
@@ -256,6 +265,7 @@ function Unzip-Archive($archive, $destination){
         New-Item -Path $destination -ItemType Directory | Out-Null
     }
 
+	lmsg "Unzip to $destination"
     $destination = $shell.NameSpace($destination)
 
     #TODO a progress dialog pops up though not sure of its effect on the deployment
@@ -381,7 +391,7 @@ function ElasticSearch-InstallService($scriptPath)
 function ElasticSearch-UninstallService($scriptPath)
 {
     # Uninstall any old version elastic search service
-    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).Name
+    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).DisplayName
 	
 	if ($elasticService -ne $null)
 	{
@@ -531,7 +541,10 @@ function Install-WorkFlow
 
     # Set first drive
     $firstDrive = (get-location).Drive.Name
-
+	
+	if ($logsFile.Length -eq 0) { $logsFile = "$firstDrive`:\Downloads\Logs.txt" }
+	if ($errorsFile.Length -eq 0) { $errorsFile = "$firstDrive`:\Downloads\Errors.txt" }
+	
 	if (-Not $update)
 	{
 		# Download Jdk
@@ -727,6 +740,13 @@ function Install-WorkFlow
 
 function Startup-Output
 {
+	if ($update)
+	{
+		$firstDrive = (get-location).Drive.Name
+		$logsFile = "$firstDrive`:\Downloads\Logs.txt"
+		$errorsFile = "$firstDrive`:\Downloads\Errors.txt"
+	}
+
     lmsg 'Install workflow starting with following params:'
     lmsg "Elasticsearch version: $elasticSearchVersion"
     if($elasticClusterName.Length -ne 0) { lmsg "Elasticsearch cluster name: $elasticClusterName" }

@@ -12,16 +12,13 @@
     .PARAMETER elasticClusterName
         Name of the elasticsearch cluster
     .EXAMPLE
-        .\elasticsearch-windows-update.ps1 -subscriptionId azure-subscription-id -resourceGroupName es-cluster-group -elasticSearchVersion 6.3.1 -discoveryEndpoints 10.0.0.4-5 -elasticClusterName elasticsearch -dataNodes 3
-        Installs 1.7.2 version of elasticsearch with cluster name evilescluster and 5 allowed subnet addresses from 4 to 8. Sets up the VM as master node.
-    .EXAMPLE
-        elasticSearchVersion 1.7.3 -elasticSearchBaseFolder software -elasticClusterName evilescluster -discoveryEndpoints 10.0.0.3-4 -dataOnlyNode
-        Installs 1.7.3 version of elasticsearch with cluster name evilescluster and 4 allowed subnet addresses from 3 to 6. Sets up the VM as data node.
+        .\elasticsearch-windows-update.ps1 -subscriptionId azure-subscription-id -resourceGroupName es-cluster-group -elasticSearchVersion 6.3.1 -discoveryEndpoints 10.0.0.4-5 -elasticClusterName elasticsearch -elasticSearchBaseFolder elasticsearch  -dataNodes 3
 #>
 Param(
     [string]$subscriptionId,
     [Parameter(Mandatory=$true)][string]$resourceGroupName,
     [Parameter(Mandatory=$true)][string]$elasticSearchVersion,
+    [string]$elasticSearchBaseFolder,
     [string]$discoveryEndpoints,
     [string]$elasticClusterName,
     [Parameter(Mandatory=$true)][int]$dataNodes,
@@ -40,21 +37,22 @@ function Log-Error(){
 Set-Alias -Name lmsg -Value Log-Output -Description "Displays an informational message in green color" 
 Set-Alias -Name lerr -Value Log-Error -Description "Displays an error message in red color" 
 
-# Declare as variable as it needs to be passed to background jobs
-$updateElasticSearchFunction = {
-    function Update-ElasticSearch($resourceGroupName, $vmName, $nodeType, $scriptPath)
-    {
-        $parameters = @{
-            "elasticSearchVersion" = "$elasticSearchVersion";
-            "discoveryEndpoints" = "$discoveryEndpoints";
-            "elasticClusterName" = "$elasticClusterName";
-            "masterOnlyNode" = ($nodeType -eq "master");
-            "clientOnlyNode" = ($nodeType -eq "client");
-            "dataOnlyNode" = ($nodeType -eq "data");
-            "update" = $true
-        }
-        Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters
+function Update-ElasticSearch($vmName, $nodeType, $scriptPath)
+{
+    $parameters = @{
+        "elasticSearchVersion" = "$elasticSearchVersion";
+        "elasticSearchBaseFolder" = "$elasticSearchBaseFolder";
+        "discoveryEndpoints" = "$discoveryEndpoints";
+        "elasticClusterName" = "$elasticClusterName";
+        "masterOnlyNode" = ($nodeType -eq "master");
+        "clientOnlyNode" = ($nodeType -eq "client");
+        "dataOnlyNode" = ($nodeType -eq "data");
+        "update" = $true
     }
+    
+    lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters"
+    $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -AsJob
+    return $job
 }
 
 
@@ -96,13 +94,11 @@ function Update-ElasticSearchCluster()
     {
         $vmName = $vmsInfo[$i].Name
         $nodeType = $vmsInfo[$i].NodeType
-        $jobName = $vmsInfo[$i].JobName
         
         lmsg "Starting job for $vmName"
-        Start-Job -InitializationScript $updateElasticSearchFunction -Name "$jobName" -ScriptBlock {
-            param ([string]$resourceGroupName, [string]$vmName, [string]$nodeType, [string]$scriptPath)
-            Update-ElasticSearch $resourceGroupName $vmName $nodeType $scriptPath
-        } -ArgumentList ($resourceGroupName, $vmName, $nodeType, $updateScriptPath)
+        Update-ElasticSearch $vmName $nodeType $updateScriptPath
+
+        exit
     }
     
     # Wait for all jobs to complete
@@ -126,8 +122,42 @@ function Update-ElasticSearchCluster()
     Get-Job | Receive-Job
 }
 
+function Login
+{
+    $needLogin = $true
+    Try 
+    {
+        $content = Get-AzureRmContext
+        if ($content) 
+        {
+            $needLogin = ([string]::IsNullOrEmpty($content.Account))
+        } 
+    } 
+    Catch 
+    {
+        if ($_ -like "*Login-AzureRmAccount to login*") 
+        {
+            $needLogin = $true
+        } 
+        else 
+        {
+            throw
+        }
+    }
+
+    if ($needLogin)
+    {
+        Login-AzureRmAccount
+    }
+    
+    Select-AzureRmSubscription -SubscriptionId $subscriptionId
+}
+
 # Login
-Connect-AzureRmAccount -Subscription $subscriptionId
+#Connect-AzureRmAccount -Subscription $subscriptionId
+# Login-AzureRmAccount
+# Select-AzureRmSubscription -SubscriptionId $subscriptionId 
+Login
 
 # Update
 Update-ElasticSearchCluster

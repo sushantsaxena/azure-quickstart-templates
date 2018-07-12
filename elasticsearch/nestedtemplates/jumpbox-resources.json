@@ -41,7 +41,6 @@
     }
   },
   "variables": {
-    "vmSize": "Standard_A0",
     "subnetRef": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('subnet').vnet), '/subnets/', parameters('subnet').name)]",
     "vmName": "[concat(parameters('namespace'), '-vm')]",
     "publicIpName": "[concat(parameters('namespace'), '-pip')]",
@@ -121,7 +120,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "[variables('vmSize')]"
+          "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
           "computerName": "jumpbox",
