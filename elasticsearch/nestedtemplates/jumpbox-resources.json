@@ -9,7 +9,7 @@
         "description": "The namespace prefix for resources created by this template"
       }
     },
-    "    ": {
+    "vmSize": {
       "type": "string",
       "metadata": {
         "description": "Size of VM"
@@ -126,7 +126,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "    ": "[parameters('    ')]"
+          "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
           "computerName": "jumpbox",
