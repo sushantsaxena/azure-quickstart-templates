@@ -66,7 +66,8 @@ Param(
     [switch]$clientOnlyNode,
     [switch]$dataOnlyNode,
     [switch]$m,
-    [switch]$jmeterConfig
+    [switch]$jmeterConfig,
+	[switch]$update
 )
 
 # To set the env vars permanently, need to use registry location
@@ -372,9 +373,24 @@ function ElasticSearch-InstallService($scriptPath)
         lmsg 'Installing elasticsearch as a service...'
         cmd.exe /C "$scriptPath install"
         if ($LASTEXITCODE) {
-            throw "Command '$scriptPath': exit code: $LASTEXITCODE"
+            throw "Command '$scriptPath install': exit code: $LASTEXITCODE"
         }
     }
+}
+
+function ElasticSearch-UninstallService($scriptPath)
+{
+    # Uninstall any old version elastic search service
+    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).Name
+	
+	if ($elasticService -ne $null)
+	{
+		lmsg 'Uninstalling elasticsearch service $elasticService'
+		cmd.exe /C "$scriptPath remove"
+        if ($LASTEXITCODE) {
+            throw "Command '$scriptPath remove': exit code: $LASTEXITCODE"
+        }	
+	}
 }
 
 
@@ -500,23 +516,30 @@ function Install-WorkFlow
     # Start script
     Startup-Output
     
-    # Discover raw data disks and format them
-    $dc = Initialize-Disks
+	if (-Not $update)
+	{
+		# Discover raw data disks and format them
+		$dc = Initialize-Disks
+
+		# Create data folders on raw disks
+		if($dc -gt 0)
+		{
+			$folderPathSetting = (Create-DataFolders $dc 'elasticsearch\data')
+		}
+	}
     
-    # Create data folders on raw disks
-    if($dc -gt 0)
-    {
-        $folderPathSetting = (Create-DataFolders $dc 'elasticsearch\data')
-    }
 
     # Set first drive
     $firstDrive = (get-location).Drive.Name
-    
-    # Download Jdk
-    $jdkSource = Download-Jdk $firstDrive
-    
-    # Install Jdk
-    $jdkInstallLocation = Install-Jdk $jdkSource $firstDrive
+
+	if (-Not $update)
+	{
+		# Download Jdk
+		$jdkSource = Download-Jdk $firstDrive
+		
+		# Install Jdk
+		$jdkInstallLocation = Install-Jdk $jdkSource $firstDrive
+	}
 
     # Download elastic search zip
     $elasticSearchZip = Download-ElasticSearch $elasticSearchVersion $firstDrive
@@ -525,8 +548,11 @@ function Install-WorkFlow
     if($elasticSearchBaseFolder.Length -eq 0) { $elasticSearchBaseFolder = 'elasticSearch'}
     $elasticSearchInstallLocation = Install-ElasticSearch $firstDrive $elasticSearchZip
 
-    # Set JAVA_HOME
-    SetEnv-JavaHome $jdkInstallLocation
+	if (-Not $update)
+	{
+		# Set JAVA_HOME
+		SetEnv-JavaHome $jdkInstallLocation
+	}
     
     # Configure cluster name and other properties
     # Cluster name
@@ -652,12 +678,21 @@ function Install-WorkFlow
 
     Add-Content $elasticSearchConfFile $textToAppend
         
-    # Add firewall exceptions
-    Elasticsearch-OpenPorts
+	if (-Not $update)
+	{
+		# Add firewall exceptions
+		Elasticsearch-OpenPorts
+	}
 
     # Install service using the batch file in bin folder
     $serviceFile = if ($elasticSearchVersion -match '6.') { "elasticsearch-service.bat" } else { "service.bat" }
     $scriptPath = Join-Path $elasticSearchBin -ChildPath $serviceFile
+	
+	if ($update)
+	{
+		ElasticSearch-UninstallService $scriptPath
+	}
+	
     ElasticSearch-InstallService $scriptPath
 
     # Install marvel if specified
@@ -704,6 +739,7 @@ function Startup-Output
     if($clientOnlyNode) { lmsg 'Node installation mode: Client' }
     if($dataOnlyNode) { lmsg 'Node installation mode: Data' }
     if($marvelOnlyNode) { lmsg 'Node installation mode: Marvel' }
+	if($update) { lmsg 'Updating ElasticSearch' }
 }
 
 Install-WorkFlow
