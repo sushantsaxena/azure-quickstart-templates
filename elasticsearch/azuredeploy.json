@@ -1061,7 +1061,7 @@
             "value": "[concat(parameters('esClusterName'), '-jumpbox')]"
           },
           "vmSize": {
-            "value": "[variables('jumpboxSize')]"
+            "value": "[parameters('jumpboxSize')]"
           }
         }
       }

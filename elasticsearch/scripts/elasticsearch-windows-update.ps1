@@ -13,6 +13,7 @@
         Name of the elasticsearch cluster
     .EXAMPLE
         .\elasticsearch-windows-update.ps1 -subscriptionId azure-subscription-id -resourceGroupName es-cluster-group -elasticSearchVersion 6.3.1 -discoveryEndpoints 10.0.0.4-5 -elasticClusterName elasticsearch -elasticSearchBaseFolder elasticsearch  -dataNodes 3
+		Updates ES version to 6.3.1
 #>
 Param(
     [string]$subscriptionId,
@@ -86,6 +87,8 @@ function Update-ElasticSearchCluster()
     $vmsInfo = Get-AllVmsInfo
     
     $count = $vmsInfo.Count
+    $jobIds = @()
+    
     lmsg "VMs to update: $count"
     
     $updateScriptPath = Join-Path $PSScriptRoot -ChildPath "elasticsearch-windows-install.ps1"
@@ -96,17 +99,17 @@ function Update-ElasticSearchCluster()
         $nodeType = $vmsInfo[$i].NodeType
         
         lmsg "Starting job for $vmName"
-        Update-ElasticSearch $vmName $nodeType $updateScriptPath
-
-        exit
+        $job = Update-ElasticSearch $vmName $nodeType $updateScriptPath
+        $job
+        
+        $jobIds += $job.Id
     }
     
     # Wait for all jobs to complete
-    While (Get-Job -State "Running")
+    While (Get-Job -State "Running" -Id $jobIds)
     {
-        $completed = (Get-Job -State "Completed").Count
+        $completed = (Get-Job -State "Completed" -Id $jobIds).Count
         
-        Get-Job
         lmsg "$completed/$count jobs completed. Sleeping for 15 seconds."
         Start-Sleep 15
     }
@@ -116,10 +119,10 @@ function Update-ElasticSearchCluster()
     
     # Get info about finished jobs
     lmsg "Get Jobs"
-    Get-Job
+    Get-Job -Id $jobIds
     
     lmsg "Receive Jobs"
-    Get-Job | Receive-Job
+    Get-Job -Id $jobIds | Receive-Job
 }
 
 function Login
