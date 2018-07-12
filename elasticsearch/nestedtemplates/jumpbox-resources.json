@@ -9,6 +9,12 @@
         "description": "The namespace prefix for resources created by this template"
       }
     },
+    "    ": {
+      "type": "string",
+      "metadata": {
+        "description": "Size of VM"
+      }
+    },
     "subnet": {
       "type": "object",
       "metadata": {
@@ -120,7 +126,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "[parameters('vmSize')]"
+          "    ": "[parameters('    ')]"
         },
         "osProfile": {
           "computerName": "jumpbox",
