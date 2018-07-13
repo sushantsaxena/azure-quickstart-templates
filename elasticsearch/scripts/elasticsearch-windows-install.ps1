@@ -384,7 +384,7 @@ function Implode-Host2([string]$discoveryHost)
 function ElasticSearch-InstallService($scriptPath)
 {
     # Install and start elastic search as a service
-    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).Name
+    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).DisplayName
     if($elasticService -eq $null) 
     {    
         # First set heap size
@@ -397,6 +397,10 @@ function ElasticSearch-InstallService($scriptPath)
             throw "Command '$scriptPath install': exit code: $LASTEXITCODE"
         }
     }
+	else
+	{
+		lmsg "Service $elasticService already exists"
+	}
 }
 
 function ElasticSearch-UninstallService($scriptPath)
@@ -426,16 +430,8 @@ function ElasticSearch-UninstallService($scriptPath)
 		
 		if ($LASTEXITCODE)
 		{
-			$oldVersionScriptPath = $scriptPath -replace $elasticSearchVersion, "2.3.2" -replace "elasticsearch-service", "service"
-			lmsg "Removing elasticsearch service $elasticServiceDisplayName using old version; command: cmd.exe /C $oldVersionScriptPath remove >> $logsFile"		
-			cmd.exe /C "$oldVersionScriptPath remove >> $logsFile"
-			lmsg ""
-			
-			if ($LASTEXITCODE)
-			{
-				lerr "Command cmd.exe /C $oldVersionScriptPath remove; exit code: $LASTEXITCODE"
-				throw "Command cmd.exe /C $oldVersionScriptPath remove; exit code: $LASTEXITCODE"
-			}
+			lerr "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
+			throw "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
 		}
     }
 	else
@@ -769,6 +765,7 @@ function Install-WorkFlow
     if ($update)
     {
         ElasticSearch-UninstallService $scriptPath
+		Start-Sleep 3
     }
     
     ElasticSearch-InstallService $scriptPath
