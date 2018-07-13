@@ -52,7 +52,7 @@ function Update-ElasticSearch($vmName, $nodeType, $scriptPath)
     }
     
     lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters"
-    $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -AsJob
+    $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -AsJob -Verbose
     return $job
 }
 
@@ -88,6 +88,7 @@ function Update-ElasticSearchCluster()
     
     $count = $vmsInfo.Count
     $jobIds = @()
+	$jobIdsToVmMap = @{}
     
     lmsg "VMs to update: $count"
     
@@ -103,26 +104,40 @@ function Update-ElasticSearchCluster()
         $job
         
         $jobIds += $job.Id
+		$jobIdsToVmMap[$job.Id] = $vmName
     }
     
     # Wait for all jobs to complete
-    While (Get-Job -State "Running" -Id $jobIds)
+    While (Get-Job -State "Running" | Where-Object { $jobIds -contains $_.Id})
     {
-        $completed = (Get-Job -State "Completed" -Id $jobIds).Count
+        $completed = (Get-Job -State "Completed" | Where-Object { $jobIds -contains $_.Id}).Count
         
         lmsg "$completed/$count jobs completed. Sleeping for 15 seconds."
         Start-Sleep 15
     }
 
-    $completed = (Get-Job -State "Completed").Count
+    $completed = (Get-Job -State "Completed" | Where-Object { $jobIds -contains $_.Id}).Count
     lmsg "$completed/$count jobs completed."
     
     # Get info about finished jobs
     lmsg "Get Jobs"
-    Get-Job -Id $jobIds
+    Get-Job | Where-Object { $jobIds -contains $_.Id}
     
     lmsg "Receive Jobs"
-    Get-Job -Id $jobIds | Receive-Job
+    Get-Job | Where-Object { $jobIds -contains $_.Id} | Receive-Job
+	
+	$failedJobs = Get-Job -State "Failed" | Where-Object { $jobIds -contains $_.Id}
+	$failedJobsCount = $failedJobs.Count
+	if ($failedJobsCount -gt 0)
+	{
+		lmsg "Getting Failed jobs"
+		foreach ($job in $failedJobs)
+		{
+			$vmName = $jobIdsToVmMap[$job.Id]
+			lerr "Failed for $vmName"
+			Receive-Job $job
+		}
+	}
 }
 
 function Login

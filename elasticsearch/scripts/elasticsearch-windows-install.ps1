@@ -322,8 +322,18 @@ function Install-ElasticSearch ($driveLetter, $elasticSearchZip, $subFolder = $e
     # Designate unzip location 
     $elasticSearchPath =  Join-Path "$driveLetter`:" -ChildPath $subFolder
     
-    # Unzip
-    Unzip-Archive $elasticSearchZip $elasticSearchPath
+    $elasticSearchUnzipPath = Join-Path $elasticSearchPath -ChildPath "elasticsearch-$elasticSearchVersion"
+    
+    if (!(Test-Path $elasticSearchUnzipPath))
+    {
+        # Unzip
+        lmsg "Unzipping elasticsearch"
+        Unzip-Archive $elasticSearchZip $elasticSearchPath
+    }
+    else
+    {
+        lmsg "Elasticsearch already exists"
+    }    
 
     return $elasticSearchPath
 }
@@ -380,9 +390,10 @@ function ElasticSearch-InstallService($scriptPath)
         # First set heap size
         SetEnv-HeapSize
 
-        lmsg 'Installing elasticsearch as a service...'
-        cmd.exe /C "$scriptPath install"
+        lmsg "Installing elasticsearch as a service; command: cmd.exe /C $scriptPath install >> $logsFile"
+        cmd.exe /C "$scriptPath install >> $logsFile"
         if ($LASTEXITCODE) {
+            lerr "Command '$scriptPath install': exit code: $LASTEXITCODE"
             throw "Command '$scriptPath install': exit code: $LASTEXITCODE"
         }
     }
@@ -390,17 +401,62 @@ function ElasticSearch-InstallService($scriptPath)
 
 function ElasticSearch-UninstallService($scriptPath)
 {
+	$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+	$isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+	lmsg "isAdmin: $isAdmin"
+
     # Uninstall any old version elastic search service
-    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"}).DisplayName
+    $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"})
+	$elasticServiceName = $elasticService.Name
+	$elasticServiceDisplayName = $elasticService.DisplayName
     
     if ($elasticService -ne $null)
     {
-        lmsg 'Uninstalling elasticsearch service $elasticService'
-        cmd.exe /C "$scriptPath remove"
+        lmsg "Stopping elasticsearch service $elasticServiceDisplayName; command: Stop-Service -Name $elasticServiceName"
+        Stop-Service -Name $elasticServiceName | Out-Null
+		
         if ($LASTEXITCODE) {
-            throw "Command '$scriptPath remove': exit code: $LASTEXITCODE"
+			lerr "Command Stop-Service -Name $elasticServiceName; exit code: $LASTEXITCODE"
+            throw "Command Stop-Service -Name $elasticServiceName; exit code: $LASTEXITCODE"
         }    
+
+        lmsg "Removing elasticsearch service $elasticServiceDisplayName; command: cmd.exe /C $scriptPath remove >> $logsFile"		
+		cmd.exe /C "$scriptPath remove >> $logsFile"
+		lmsg ""
+		
+		if ($LASTEXITCODE)
+		{
+			$oldVersionScriptPath = $scriptPath -replace $elasticSearchVersion, "2.3.2" -replace "elasticsearch-service", "service"
+			lmsg "Removing elasticsearch service $elasticServiceDisplayName using old version; command: cmd.exe /C $oldVersionScriptPath remove >> $logsFile"		
+			cmd.exe /C "$oldVersionScriptPath remove >> $logsFile"
+			lmsg ""
+			
+			if ($LASTEXITCODE)
+			{
+				lerr "Command cmd.exe /C $oldVersionScriptPath remove; exit code: $LASTEXITCODE"
+				throw "Command cmd.exe /C $oldVersionScriptPath remove; exit code: $LASTEXITCODE"
+			}
+		}
     }
+	else
+	{
+		lmsg "No existing elasticSearch service"
+	}
+}
+
+function ExecuteWithRetries($command)
+{
+	$retries = 0
+	$command
+	while ($LASTEXITCODE -And ($retries -lt 3))
+	{
+		$retries++
+		
+		Start-Sleep 3
+		lmsg "Retry: $retries"
+
+		$command		
+	}
 }
 
 
@@ -542,8 +598,17 @@ function Install-WorkFlow
     # Set first drive
     $firstDrive = (get-location).Drive.Name
     
-    if ($logsFile.Length -eq 0) { $logsFile = "$firstDrive`:\Downloads\Logs.txt" }
-    if ($errorsFile.Length -eq 0) { $errorsFile = "$firstDrive`:\Downloads\Errors.txt" }
+    if ($logsFile.Length -eq 0)
+    {
+        $logsFile = "$firstDrive`:\Downloads\Logs.txt"
+		if (Test-Path $logsFile) { Remove-Item  $logsFile }
+    }
+
+    if ($errorsFile.Length -eq 0)
+    {
+        $errorsFile = "$firstDrive`:\Downloads\Errors.txt"
+		if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
+    }
     
     if (-Not $update)
     {
@@ -745,6 +810,9 @@ function Startup-Output
         $firstDrive = (get-location).Drive.Name
         $logsFile = "$firstDrive`:\Downloads\Logs.txt"
         $errorsFile = "$firstDrive`:\Downloads\Errors.txt"
+		
+		if (Test-Path $logsFile) { Remove-Item  $logsFile }
+		if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
     }
 
     lmsg 'Install workflow starting with following params:'
