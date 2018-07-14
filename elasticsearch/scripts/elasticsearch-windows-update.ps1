@@ -13,18 +13,20 @@
         Name of the elasticsearch cluster
     .EXAMPLE
         .\elasticsearch-windows-update.ps1 -subscriptionId azure-subscription-id -resourceGroupName es-cluster-group -elasticSearchVersion 6.3.1 -discoveryEndpoints 10.0.0.4-5 -elasticClusterName elasticsearch -elasticSearchBaseFolder elasticsearch  -dataNodes 3
-		Updates ES version to 6.3.1
+        Updates ES version to 6.3.1
 #>
 Param(
     [string]$subscriptionId,
     [Parameter(Mandatory=$true)][string]$resourceGroupName,
     [Parameter(Mandatory=$true)][string]$elasticSearchVersion,
     [string]$elasticSearchBaseFolder,
+    [string]$jdkInstallLocation,
     [string]$discoveryEndpoints,
     [string]$elasticClusterName,
     [Parameter(Mandatory=$true)][int]$dataNodes,
     [int]$masterNodes = 3,
-    [int]$clientNodes = 3
+    [int]$clientNodes = 3,
+    [switch]Debug
 )
 
 function Log-Output(){
@@ -40,22 +42,47 @@ Set-Alias -Name lerr -Value Log-Error -Description "Displays an error message in
 
 function Update-ElasticSearch($vmName, $nodeType, $scriptPath)
 {
+    # $pass = ConvertTo-SecureString -string $password -AsPlainText -Force
+    # $cred = New-Object -typename System.Management.Automation.PSCredential -argumentlist $username, $pass
     $parameters = @{
         "elasticSearchVersion" = "$elasticSearchVersion";
         "elasticSearchBaseFolder" = "$elasticSearchBaseFolder";
+        "jdkInstallLocation" = "$jdkInstallLocation";
         "discoveryEndpoints" = "$discoveryEndpoints";
         "elasticClusterName" = "$elasticClusterName";
-        "masterOnlyNode" = ($nodeType -eq "master");
-        "clientOnlyNode" = ($nodeType -eq "client");
-        "dataOnlyNode" = ($nodeType -eq "data");
         "update" = $true
     }
     
-    lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters"
-    $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -AsJob -Verbose
-    return $job
-}
+    if ($nodeType -eq "master")
+    {
+        $parameters["masterOnlyNode"] = $true
+    }    
+    elseif ($nodeType -eq "client")
+    {
+        $parameters["clientOnlyNode"] = $true
+    }
+    
+    if ($nodeType -eq "data")
+    {
+        $parameters["dataOnlyNode"] = $true
+    }
+    
+    $masterOnlyNode = $nodeType -eq "master"
+    $clientOnlyNode = $nodeType -eq "client"
+    $dataOnlyNode = $nodeType -eq "data"
 
+    if ($Debug)
+    {
+        lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -Debug"
+        Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -Debug
+    }
+    else
+    {
+        lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob"
+        $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob
+        return $job
+    }
+}
 
 function Get-VmInfoByType($nodeType, $nodes)
 {
@@ -77,18 +104,21 @@ function Get-AllVmsInfo()
     $clientVmNames = Get-VmInfoByType "client" $clientNodes
     $masterVmNames = Get-VmInfoByType "master" $masterNodes
     $dataVmNames = Get-VmInfoByType "data" $dataNodes
-    return $clientVmNames + $masterVmNames + $dataVmNames
+    # return $clientVmNames + $masterVmNames + $dataVmNames
+    return $dataVmNames
 }
 
 function Update-ElasticSearchCluster()
 {
     lmsg "Starting update"
     
+    if ($jdkInstallLocation.Length -eq 0) { $jdkInstallLocation = '"Program Files\Java\Jdk"' }
+    
     $vmsInfo = Get-AllVmsInfo
     
     $count = $vmsInfo.Count
     $jobIds = @()
-	$jobIdsToVmMap = @{}
+    $jobIdsToVmMap = @{}
     
     lmsg "VMs to update: $count"
     
@@ -100,11 +130,21 @@ function Update-ElasticSearchCluster()
         $nodeType = $vmsInfo[$i].NodeType
         
         lmsg "Starting job for $vmName"
-        $job = Update-ElasticSearch $vmName $nodeType $updateScriptPath
-        $job
         
-        $jobIds += $job.Id
-		$jobIdsToVmMap[$job.Id] = $vmName
+        $job = Update-ElasticSearch $vmName $nodeType $updateScriptPath
+        
+        if (-Not $Debug)
+        {
+            $job
+            
+            $jobIds += $job.Id
+            $jobIdsToVmMap[$job.Id] = $vmName
+        }
+    }
+    
+    if ($Debug)
+    {
+        exit
     }
     
     # Wait for all jobs to complete
@@ -125,19 +165,19 @@ function Update-ElasticSearchCluster()
     
     lmsg "Receive Jobs"
     Get-Job | Where-Object { $jobIds -contains $_.Id} | Receive-Job
-	
-	$failedJobs = Get-Job -State "Failed" | Where-Object { $jobIds -contains $_.Id}
-	$failedJobsCount = $failedJobs.Count
-	if ($failedJobsCount -gt 0)
-	{
-		lmsg "Getting Failed jobs"
-		foreach ($job in $failedJobs)
-		{
-			$vmName = $jobIdsToVmMap[$job.Id]
-			lerr "Failed for $vmName"
-			Receive-Job $job
-		}
-	}
+    
+    $failedJobs = Get-Job -State "Failed" | Where-Object { $jobIds -contains $_.Id}
+    $failedJobsCount = $failedJobs.Count
+    if ($failedJobsCount -gt 0)
+    {
+        lmsg "Getting Failed jobs"
+        foreach ($job in $failedJobs)
+        {
+            $vmName = $jobIdsToVmMap[$job.Id]
+            lerr "Failed for $vmName"
+            Receive-Job $job
+        }
+    }
 }
 
 function Login
@@ -172,9 +212,6 @@ function Login
 }
 
 # Login
-#Connect-AzureRmAccount -Subscription $subscriptionId
-# Login-AzureRmAccount
-# Select-AzureRmSubscription -SubscriptionId $subscriptionId 
 Login
 
 # Update

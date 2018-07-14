@@ -30,7 +30,7 @@
         This script runs as a VM extension and installs elastic search on the cluster nodes. It can be used to setup either a single VM (when run as VM extension) or a cluster (when run from within an ARM template)
     .PARAMETER elasticSearchVersion
         Version of elasticsearch to install e.g. 1.7.3
-    .PARAMETER jdkDownloadLocation
+    .PARAMETER jdkInstallLocation
         Url of the JDK installer e.g. http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jdk-8u65-windows-x64.exe
     .PARAMETER elasticSearchBaseFolder
         Disk location of the base folder of elasticsearch installation.
@@ -53,7 +53,7 @@
 #>
 Param(
     [Parameter(Mandatory=$true)][string]$elasticSearchVersion,
-    [string]$jdkDownloadLocation,
+    [string]$jdkInstallLocation,
     [string]$elasticSearchBaseFolder,
     [string]$discoveryEndpoints,
     [string]$elasticClusterName,
@@ -397,62 +397,75 @@ function ElasticSearch-InstallService($scriptPath)
             throw "Command '$scriptPath install': exit code: $LASTEXITCODE"
         }
     }
-	else
-	{
-		lmsg "Service $elasticService already exists"
-	}
+    else
+    {
+        lmsg "Service $elasticService already exists"
+    }
 }
 
 function ElasticSearch-UninstallService($scriptPath)
 {
-	$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-	$isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-	lmsg "isAdmin: $isAdmin"
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    lmsg "isAdmin: $isAdmin"
 
     # Uninstall any old version elastic search service
     $elasticService = (get-service | Where-Object {$_.Name -match "elasticsearch"})
-	$elasticServiceName = $elasticService.Name
-	$elasticServiceDisplayName = $elasticService.DisplayName
+    $elasticServiceName = $elasticService.Name
+    $elasticServiceDisplayName = $elasticService.DisplayName
+    
     
     if ($elasticService -ne $null)
     {
+        if ($elasticServiceDisplayName.Contains($elasticSearchVersion))
+        {
+            lmsg "Elasticsearch $elasticSearchVersion already installed."
+            exit
+        }
+
+        lmsg "JAVA_HOME"        
+        cmd.exe /C "echo %JAVA_HOME% >> $logsFile"
+        
+        
         lmsg "Stopping elasticsearch service $elasticServiceDisplayName; command: Stop-Service -Name $elasticServiceName"
         Stop-Service -Name $elasticServiceName | Out-Null
-		
+        Start-Sleep 3
+        
         if ($LASTEXITCODE) {
-			lerr "Command Stop-Service -Name $elasticServiceName; exit code: $LASTEXITCODE"
+            lerr "Command Stop-Service -Name $elasticServiceName; exit code: $LASTEXITCODE"
             throw "Command Stop-Service -Name $elasticServiceName; exit code: $LASTEXITCODE"
         }    
 
-        lmsg "Removing elasticsearch service $elasticServiceDisplayName; command: cmd.exe /C $scriptPath remove >> $logsFile"		
-		cmd.exe /C "$scriptPath remove >> $logsFile"
-		lmsg ""
-		
-		if ($LASTEXITCODE)
-		{
-			lerr "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
-			throw "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
-		}
+        lmsg "Removing elasticsearch service $elasticServiceDisplayName; command: cmd.exe /C $scriptPath remove >> $logsFile"        
+        cmd.exe /C "$scriptPath remove >> $logsFile"
+        # $scriptPath remove | lmsg
+        lmsg ""
+        
+        if ($LASTEXITCODE)
+        {
+            lerr "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
+            throw "Command cmd.exe /C $scriptPath remove >> $logsFile; exit code: $LASTEXITCODE"
+        }
     }
-	else
-	{
-		lmsg "No existing elasticSearch service"
-	}
+    else
+    {
+        lmsg "No existing elasticSearch service"
+    }
 }
 
 function ExecuteWithRetries($command)
 {
-	$retries = 0
-	$command
-	while ($LASTEXITCODE -And ($retries -lt 3))
-	{
-		$retries++
-		
-		Start-Sleep 3
-		lmsg "Retry: $retries"
+    $retries = 0
+    $command
+    while ($LASTEXITCODE -And ($retries -lt 3))
+    {
+        $retries++
+        
+        Start-Sleep 3
+        lmsg "Retry: $retries"
 
-		$command		
-	}
+        $command        
+    }
 }
 
 
@@ -597,13 +610,13 @@ function Install-WorkFlow
     if ($logsFile.Length -eq 0)
     {
         $logsFile = "$firstDrive`:\Downloads\Logs.txt"
-		if (Test-Path $logsFile) { Remove-Item  $logsFile }
+        if (Test-Path $logsFile) { Remove-Item  $logsFile }
     }
 
     if ($errorsFile.Length -eq 0)
     {
         $errorsFile = "$firstDrive`:\Downloads\Errors.txt"
-		if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
+        if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
     }
     
     if (-Not $update)
@@ -614,6 +627,10 @@ function Install-WorkFlow
         # Install Jdk
         $jdkInstallLocation = Install-Jdk $jdkSource $firstDrive
     }
+    elseif ($jdkInstallLocation.Length -ne 0)
+    {
+        $jdkInstallLocation =  Join-Path "$firstDrive`:" -ChildPath $jdkInstallLocation
+    }
 
     # Download elastic search zip
     $elasticSearchZip = Download-ElasticSearch $elasticSearchVersion $firstDrive
@@ -622,7 +639,7 @@ function Install-WorkFlow
     if($elasticSearchBaseFolder.Length -eq 0) { $elasticSearchBaseFolder = 'elasticSearch'}
     $elasticSearchInstallLocation = Install-ElasticSearch $firstDrive $elasticSearchZip
 
-    if (-Not $update)
+    if ($jdkInstallLocation.Length -ne 0)
     {
         # Set JAVA_HOME
         SetEnv-JavaHome $jdkInstallLocation
@@ -750,7 +767,18 @@ function Install-WorkFlow
         $textToAppend = $textToAppend + "`nmarvel.agent.enabled: false"
     }
 
-    Add-Content $elasticSearchConfFile $textToAppend
+    $existingContent = [IO.File]::ReadAllText($elasticSearchConfFile)
+    
+    if (-Not $existingContent.Contains("Settings automatically added by deployment script"))
+    {
+        lmsg "Updating Config"
+        Add-Content $elasticSearchConfFile $textToAppend
+    }
+    else
+    {
+        # Don't add anything if the settings by script have already been added
+        lmsg "Config already udpated"
+    }
         
     if (-Not $update)
     {
@@ -765,7 +793,7 @@ function Install-WorkFlow
     if ($update)
     {
         ElasticSearch-UninstallService $scriptPath
-		Start-Sleep 3
+        Start-Sleep 3
     }
     
     ElasticSearch-InstallService $scriptPath
@@ -807,15 +835,15 @@ function Startup-Output
         $firstDrive = (get-location).Drive.Name
         $logsFile = "$firstDrive`:\Downloads\Logs.txt"
         $errorsFile = "$firstDrive`:\Downloads\Errors.txt"
-		
-		if (Test-Path $logsFile) { Remove-Item  $logsFile }
-		if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
+        
+        if (Test-Path $logsFile) { Remove-Item  $logsFile }
+        if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
     }
 
     lmsg 'Install workflow starting with following params:'
     lmsg "Elasticsearch version: $elasticSearchVersion"
     if($elasticClusterName.Length -ne 0) { lmsg "Elasticsearch cluster name: $elasticClusterName" }
-    if($jdkDownloadLocation.Length -ne 0) { lmsg "Jdk download location: $jdkDownloadLocation" }
+    if($jdkInstallLocation.Length -ne 0) { lmsg "Jdk install location: $jdkInstallLocation" }
     if($elasticSearchBaseFolder.Length -ne 0) { lmsg "Elasticsearch base folder: $elasticSearchBaseFolder" }
     if($discoveryEndpoints.Length -ne 0) { lmsg "Discovery endpoints: $discoveryEndpoints" }
     if($marvelEndpoints.Length -ne 0) { lmsg "Marvel endpoints: $marvelEndpoints" }
