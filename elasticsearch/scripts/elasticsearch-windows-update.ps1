@@ -25,8 +25,7 @@ Param(
     [string]$elasticClusterName,
     [Parameter(Mandatory=$true)][int]$dataNodes,
     [int]$masterNodes = 3,
-    [int]$clientNodes = 3,
-    [switch]Debug
+    [int]$clientNodes = 3
 )
 
 function Log-Output(){
@@ -104,8 +103,7 @@ function Get-AllVmsInfo()
     $clientVmNames = Get-VmInfoByType "client" $clientNodes
     $masterVmNames = Get-VmInfoByType "master" $masterNodes
     $dataVmNames = Get-VmInfoByType "data" $dataNodes
-    # return $clientVmNames + $masterVmNames + $dataVmNames
-    return $dataVmNames
+    return $clientVmNames + $masterVmNames + $dataVmNames
 }
 
 function Update-ElasticSearchCluster()
