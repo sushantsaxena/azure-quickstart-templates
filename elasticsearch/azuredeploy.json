@@ -75,7 +75,7 @@
         "description": "Optionally add a virtual machine to the deployment which you can use to connect and manage virtual machines on the internal network"
       }
     },
-    "jumpboxSize": {
+    "vmJumpboxSize": {
       "type": "string",
       "defaultValue": "Standard_D4_v2",
       "allowedValues": [
@@ -274,7 +274,7 @@
         "description": "Provision a machine with Kibana on it"
       }
     },
-    "kibanaSize": {
+    "vmKibanaSize": {
       "type": "string",
       "defaultValue": "Standard_D4_v2",
       "allowedValues": [
@@ -1083,7 +1083,7 @@
             "value": "[concat(parameters('esClusterName'), '-jumpbox')]"
           },
           "vmSize": {
-            "value": "[parameters('jumpboxSize')]"
+            "value": "[parameters('vmJumpboxSize')]"
           }
         }
       }
@@ -1106,7 +1106,7 @@
             "value": "[variables('storageAccountNameShared')]"
           },
           "vmSize": {
-            "value": "[parameters('kibanaSize')]"
+            "value": "[parameters('vmKibanaSize')]"
           },
           "adminUsername": {
             "value": "[parameters('adminUsername')]"
