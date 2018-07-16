@@ -9,6 +9,12 @@
         "description": "The namespace prefix for resources created by this template"
       }
     },
+    "vmSize": {
+      "type": "string",
+      "metadata": {
+        "description": "Size of VM"
+      }
+    },
     "subnet": {
       "type": "object",
       "metadata": {
@@ -41,7 +47,6 @@
     }
   },
   "variables": {
-    "vmSize": "Standard_A1",
     "subnetRef": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('subnet').vnet), '/subnets/', parameters('subnet').name)]",
     "vmName": "[concat(parameters('namespace'), '-vm')]",
     "publicIpName": "[concat(parameters('namespace'), '-pip')]",
@@ -135,7 +140,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "[variables('vmSize')]"
+          "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
           "computerName": "kibana",
