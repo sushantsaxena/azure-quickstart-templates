@@ -580,7 +580,7 @@
         "kibana": {
           "publisher": "Microsoft.Azure.Extensions",
           "type": "CustomScript",
-      "autoUpgradeMinorVersion": true,
+		  "autoUpgradeMinorVersion": true,
           "typeHandlerVersion": "2.0",
           "settings": {
             "fileUris": "[variables('ubuntuScripts')]",

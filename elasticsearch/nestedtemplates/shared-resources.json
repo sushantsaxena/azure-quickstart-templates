@@ -154,7 +154,26 @@
         ],
         "loadBalancingRules": [
           {
-            "name": "es-http-rule",
+            "name": "es-ssl-rule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'es-load-balancer'), '/frontendIPConfigurations/LBFE')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'es-load-balancer'), '/backendAddressPools/LBBE')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 443,
+              "backendPort": 443,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 5,
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'es-load-balancer'), '/probes/es-ssl-probe')]"
+              }
+            }
+          },
+          {
+            "name": "es-http-rule-clustering-access",
             "properties": {
               "frontendIPConfiguration": {
                 "id": "[concat(resourceId('Microsoft.Network/loadBalancers', 'es-load-balancer'), '/frontendIPConfigurations/LBFE')]"
@@ -198,7 +217,16 @@
               "intervalInSeconds": 30,
               "numberOfProbes": 3
             }
-          }
+          },
+		  {
+			"name": "es-ssl-probe",
+			"properties": {
+			  "protocol": "Tcp",
+			  "port": 443,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+			}
+		  }
         ]
       }
     }
