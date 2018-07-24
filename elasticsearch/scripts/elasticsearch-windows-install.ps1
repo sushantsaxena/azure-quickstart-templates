@@ -302,17 +302,35 @@ function SetEnv-HeapSize
     $halfRamCnt = [math]::Min($halfRamCnt, 31744)
     $halfRam = $halfRamCnt.ToString() + 'm'
     lmsg "Half of total RAM in system is $halfRam mb."
-
-    lmsg "Setting ES_HEAP_SIZE in the registry to $halfRam..."
-    Set-ItemProperty -Path $regEnvPath -Name ES_HEAP_SIZE -Value $halfRam | Out-Null
-
-    lmsg 'Setting ES_HEAP_SIZE for the current session...'
-    Set-Item Env:ES_HEAP_SIZE $halfRam | Out-Null
-
-    # Additional check
-    if ([environment]::GetEnvironmentVariable("ES_HEAP_SIZE","machine") -eq $null)
+    
+    if ($elasticSearchVersion -match "6.")
     {
-        [environment]::setenvironmentvariable("ES_HEAP_SIZE",$halfRam,"machine") | Out-Null
+        $javaOpts = "-Xms$halfRam -Xmx$halfRam"
+        lmsg "Setting ES_JAVA_OPTS in the registry to $javaOpts..."
+        Set-ItemProperty -Path $regEnvPath -Name ES_JAVA_OPTS -Value $javaOpts | Out-Null
+
+        lmsg 'Setting ES_JAVA_OPTS for the current session...'
+        Set-Item Env:ES_JAVA_OPTS $javaOpts | Out-Null
+
+        # Additional check
+        if ([environment]::GetEnvironmentVariable("ES_JAVA_OPTS","machine") -eq $null)
+        {
+            [environment]::setenvironmentvariable("ES_JAVA_OPTS",$javaOpts,"machine") | Out-Null
+        }
+    }
+    else
+    {
+        lmsg "Setting ES_HEAP_SIZE in the registry to $halfRam..."
+        Set-ItemProperty -Path $regEnvPath -Name ES_HEAP_SIZE -Value $halfRam | Out-Null
+
+        lmsg 'Setting ES_HEAP_SIZE for the current session...'
+        Set-Item Env:ES_HEAP_SIZE $halfRam | Out-Null
+
+        # Additional check
+        if ([environment]::GetEnvironmentVariable("ES_HEAP_SIZE","machine") -eq $null)
+        {
+            [environment]::setenvironmentvariable("ES_HEAP_SIZE",$halfRam,"machine") | Out-Null
+        }
     }
 }
 
