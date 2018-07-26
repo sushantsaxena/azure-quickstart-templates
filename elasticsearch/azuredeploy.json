@@ -834,6 +834,7 @@
       "[div(sub(add(38, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
       "[div(sub(add(39, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
       "[div(sub(add(40, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
+      "[div(sub(add(50, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
       "[div(sub(add(51, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
       "[div(sub(add(52, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
       "[div(sub(add(53, variables('nodesPerStorageAccount')), 1), variables('nodesPerStorageAccount'))]",
