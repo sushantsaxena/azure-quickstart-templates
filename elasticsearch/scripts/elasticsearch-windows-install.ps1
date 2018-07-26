@@ -193,7 +193,7 @@ function Install-Jdk
 
     try{
         lmsg "Installing java on the box under $installPath..."
-        $proc = Start-Process -FilePath $sourceLoc -ArgumentList "/s INSTALLDIR=`"$installPath`" /L `"$logPath`"" -Wait -PassThru -RedirectStandardOutput $psLog -RedirectStandardError $psErr -NoNewWindow
+        $proc = Start-Process -FilePath $sourceLoc -ArgumentList "/s INSTALLDIR=`"$installPath`" AUTO_UPDATE=0 /L `"$logPath`"" -Wait -PassThru -RedirectStandardOutput $psLog -RedirectStandardError $psErr -NoNewWindow
         $proc.WaitForExit()
         lmsg "JDK installed under $installPath" "Log file location: $logPath"
         
