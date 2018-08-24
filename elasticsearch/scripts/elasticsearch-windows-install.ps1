@@ -438,6 +438,7 @@ function ElasticSearch-UninstallService($scriptPath)
         if ($elasticServiceDisplayName.Contains($elasticSearchVersion))
         {
             lmsg "Elasticsearch $elasticSearchVersion already installed."
+            ElasticSearch-StartService
             exit
         }
 
@@ -504,6 +505,10 @@ function ElasticSearch-StartService()
 
         lmsg 'Setting the elasticsearch service startup to automatic...'
         Set-Service $elasticService -StartupType Automatic | Out-Null
+    }
+    else
+    {
+        lmsg "Elasticsearch service not found"
     }
 }
 
@@ -636,17 +641,26 @@ function Install-WorkFlow
         if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
     }
     
+    # Download Jdk
+    $jdkSource = Download-Jdk $firstDrive
+        
     if (-Not $update)
     {
-        # Download Jdk
-        $jdkSource = Download-Jdk $firstDrive
-        
         # Install Jdk
         $jdkInstallLocation = Install-Jdk $jdkSource $firstDrive
     }
     elseif ($jdkInstallLocation.Length -ne 0)
     {
         $jdkInstallLocation =  Join-Path "$firstDrive`:" -ChildPath $jdkInstallLocation
+        
+        if (Test-Path $jdkInstallLocation)
+        {
+            lmsg "Java already installed"
+        }
+        else
+        {
+            Install-Jdk $jdkSource $firstDrive
+        }
     }
 
     # Download elastic search zip
