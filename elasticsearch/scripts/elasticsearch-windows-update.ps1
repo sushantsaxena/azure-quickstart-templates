@@ -77,8 +77,10 @@ function Update-ElasticSearch($vmName, $nodeType, $scriptPath)
     }
     else
     {
-        lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob"
-        $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob
+        # lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob"
+        # $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Parameter $parameters -Verbose -AsJob
+        lmsg "Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Verbose -AsJob"
+        $job = Invoke-AzureRmVMRunCommand -ResourceGroupName $resourceGroupName -Name $vmName -CommandId 'RunPowerShellScript' -ScriptPath $scriptPath -Verbose -AsJob
         return $job
     }
 }
@@ -120,7 +122,8 @@ function Update-ElasticSearchCluster()
     
     lmsg "VMs to update: $count"
     
-    $updateScriptPath = Join-Path $PSScriptRoot -ChildPath "elasticsearch-windows-install.ps1"
+    # $updateScriptPath = Join-Path $PSScriptRoot -ChildPath "elasticsearch-windows-install.ps1"
+    $updateScriptPath = Join-Path $PSScriptRoot -ChildPath "res.ps1"
     
     for ($i = 0; $i -lt $count; $i++)
     {

@@ -131,7 +131,9 @@ function Create-DataFolders([int]$numDrives, [string]$folder)
     for($i=0;$i -lt $numDrives;$i++)
     {
         $pathSet[$i] = $letters[$i] + ':\' + $folder
-        New-Item -Path $pathSet[$i]  -ItemType Directory | Out-Null
+        
+        
+        New-Item -Path $pathSet[$i] -ItemType Directory | Out-Null
     }
 
     $retVal = $pathSet -join ','
@@ -139,6 +141,36 @@ function Create-DataFolders([int]$numDrives, [string]$folder)
     lmsg "Created data folders: $retVal" 
     
     return $retVal
+}
+
+function Disable-WindowsUpdate()
+{
+    $windowsUpdateService = Get-Service -Name "wuauserv"
+    if ($windowsUpdateService -ne $null)
+    {
+        if ($windowsUpdateService.Status -ne "Stopped")
+        {
+            lmsg 'Stopping Windows Update Service...'
+            Stop-Service -Name "wuauserv" | lmsg
+            
+            $svc = Get-Service -Name "wuauserv"
+            if($svc -ne $null)
+            {
+                $svc.WaitForStatus('Stopped', '00:00:10')
+            }
+        }
+        else
+        {
+            lmsg 'Windows Update Service already stopped'
+        }
+        
+        lmsg 'Setting the Windows Update Service startup to disabled'
+        Set-Service -Name "wuauserv" -StartupType Disabled | lmsg
+    }
+    else
+    {
+        lmsg "No Windows Update Service found"
+    }
 }
 
 function Download-Jdk
@@ -640,6 +672,9 @@ function Install-WorkFlow
         $errorsFile = "$firstDrive`:\Downloads\Errors.txt"
         if (Test-Path $errorsFile) { Remove-Item  $errorsFile }
     }
+    
+    # Disable windows update
+    Disable-WindowsUpdate
     
     # Download Jdk
     $jdkSource = Download-Jdk $firstDrive
